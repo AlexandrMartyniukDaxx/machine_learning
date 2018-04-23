@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import anaconda as a
 
 titanic_df = pd.read_csv('titanic.csv')
 
@@ -20,9 +21,16 @@ pvt_sex = titanic_df.pivot_table(index=['Sex'], columns=['Pclass'], values='Name
 print('Pivot on Sex/Class:', '\n', pvt_sex, '\n')
 
 # Pivot table survived/class
+titanic_df['ShortName'] = titanic_df['Name'].apply(lambda x: x.split('. ')[1].split(' ')[0].strip('()'))
+names_set = titanic_df.groupby(['PassengerId'])['ShortName'].apply(lambda x: x)
+print(names_set)
+
+short_name_set = titanic_df.groupby(['ShortName'])['PassengerId'].count()
+print(short_name_set)
+
 df_survived = titanic_df[titanic_df.Survived == 1];
 total_survived = df_survived.shape[0]
-pvt_survived = df_survived.pivot_table(index=['Pclass', 'Sex'], values=['Name'], aggfunc='count')
+pvt_survived = df_survived.pivot_table(index=['Pclass', 'Sex'], values=['ShortName'], aggfunc='count')
 pvt_survived['%'] = pvt_survived.apply(lambda row: row.values / total_survived * 100)
 # pvt_survived['Tot%'] = pvt_survived.apply(lambda row: row.values / total_rows * 100)
 print('Total survived: ', total_survived)
