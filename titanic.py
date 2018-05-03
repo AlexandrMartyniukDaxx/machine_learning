@@ -17,6 +17,9 @@ grouped_table = class_set.groupby(level=['Pclass']).apply(lambda x: x / float(x.
 print('\nPercentage of survivors divided by sex and age per class')
 print(grouped_table)
 
+surv_group = titanic_df.groupby(['Pclass', 'Sex', 'AgeGroup'])['Survived'].apply(lambda x: x.mean() * 100)
+print('\nPercentage of survivors per each category:\n', surv_group)
+
 # Pivot table sex/class
 pvt_sex = titanic_df.pivot_table(index=['Pclass'], columns=['Sex'], values='PassengerId', aggfunc='count')
 print('\nPivot on Sex/Class:', '\n', pvt_sex, '\n')
