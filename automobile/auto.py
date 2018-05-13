@@ -45,4 +45,18 @@ print(df['price'].mean())
 mean_price = numeric_prices.mean()
 print(mean_price)
 
-print(df.price)
+# print(df.price)
+
+# normalize
+price_df = df['price']
+price_df_normalized = (price_df - price_df.min())/(price_df.max() - price_df.min())
+print(price_df_normalized)
+
+quantile_val = 0.95
+norm_quantile = price_df_normalized.quantile(quantile_val)
+print(norm_quantile)
+
+trimmed = price_df_normalized[price_df_normalized <= norm_quantile].reset_index()
+print(trimmed)
+
+def normalize(df, remove_bottom, remove_top):
