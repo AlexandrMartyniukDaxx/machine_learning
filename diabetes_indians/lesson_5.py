@@ -1,98 +1,62 @@
 import pandas as pd
-import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-
-def norm_arr(arr):
-    mean = arr.mean()
-    std = arr.std()
-
-    normalized = (arr - mean) / std
-    return normalized
+from diabetes_indians.lib_4 import load_diabetes_df, norm_df, norm_minmax
+from diabetes_indians.lib_5 import predict, stratified_split, calc_accuracy, calc_bcr_accuracy
 
 
-def norm_df(df):
-    result = df.copy()
+def complex_validation(df):
+    nfold = 100
+    key = 'class'
+    columns = ['U_LR', 'U_LR_BCR', 'STD_LR', 'STD_LR_BCR', 'MM_LR', 'MM_LR_BCR',
+                                   'U_RF', 'U_RF_BCR', 'STD_RF', 'STD_RF_BCR', 'MM_RF', 'MM_RF_BCR']
 
-    for feature in df.columns:
-        result[feature] = norm_arr(result[feature])
-
-    return result
-
-
-def stratified_split(y, proportion = 0.8):
-    y = np.array(y)
-
-    train_inds = np.zeros(len(y), dtype=bool)
-    test_inds = np.zeros(len(y), dtype=bool)
-
-    values = np.unique(y)
-    for value in values:
-        value_inds = np.nonzero(y == value)[0]
-        np.random.shuffle(value_inds)
-
-        n = int(proportion * len(value_inds))
-
-        train_inds[value_inds[:n]] = True
-        test_inds[value_inds[n:]] = True
-
-    return train_inds, test_inds
-
-
-def norm_df(dframe):
-    result = dframe.copy()
-
-    for feature in dframe.columns:
-        result[feature] = norm_arr(result[feature])
-
-    return result
-
-names = ['preg', 'plas', 'pres', 'skin', 'test', 'mass', 'pedi', 'age', 'class']
-
-df = pd.read_csv('./data.csv', names=names)
-
-
-def calculate_precision(real, pred):
-    compare_df = pd.DataFrame({'real': real, 'predicted': pred})
-    compare_df['correct'] = compare_df['real'] == compare_df['predicted']
-    return compare_df['correct'].mean()
-
-
-def calc_accuracy(real, pred):
-    return 1 - sum((abs(real - pred))/len(real))
-
-
-def calc_bcr_accuracy(real, pred):
-    compare_df = pd.DataFrame({'real': real, 'predicted': pred})
-    compare_df['correct'] = compare_df['real'] == compare_df['predicted']
-    grouped = compare_df.groupby(compare_df.real)['correct'].mean()
-    return grouped.mean()
-
-
-def CV(df, key, classifier, nfold, normalize):
-    acc = []
-
+    rows = []
     for i in range(nfold):
         train, test = stratified_split(df[key])
 
         x_train = df.iloc[train, 0:8]
         x_test = df.iloc[test, 0:8]
-
-        if normalize is True:
-            x_train = norm_df(x_train)
-            x_test = norm_df(x_test)
-
+        x_train_std = norm_df(x_train)
+        x_test_std = norm_df(x_test)
+        x_train_mm = norm_minmax(x_train)
+        x_test_mm = norm_minmax(x_test)
         y_train = df[key][train]
         y_test = df[key][test]
 
-        classifier.fit(x_train, y_train)
-        y_pred = classifier.predict(x_test)
-        acc.append(calc_bcr_accuracy(y_test, y_pred))
+        logreg = LogisticRegression()
+        rf = RandomForestClassifier()
 
-    return np.mean(acc)
+        u_logreg_pred = predict(x_train, y_train, x_test, y_test, logreg)
+        std_logreg_pred = predict(x_train_std, y_train, x_test_std, y_test, logreg)
+        mm_logreg_pred = predict(x_train_mm, y_train, x_test_mm, y_test, logreg)
+
+        u_rf_pred = predict(x_train, y_train, x_test, y_test, rf)
+        std_rf_pred = predict(x_train_std, y_train, x_test, y_test, rf)
+        mm_rf_pred = predict(x_train_mm, y_train, x_test, y_test, rf)
+
+        rows.append([
+            calc_accuracy(y_test, u_logreg_pred),
+            calc_bcr_accuracy(y_test, u_logreg_pred),
+            calc_accuracy(y_test, std_logreg_pred),
+            calc_bcr_accuracy(y_test, std_logreg_pred),
+            calc_accuracy(y_test, mm_logreg_pred),
+            calc_bcr_accuracy(y_test, mm_logreg_pred),
+            calc_accuracy(y_test, u_rf_pred),
+            calc_bcr_accuracy(y_test, u_rf_pred),
+            calc_accuracy(y_test, std_rf_pred),
+            calc_bcr_accuracy(y_test, std_rf_pred),
+            calc_accuracy(y_test, mm_rf_pred),
+            calc_bcr_accuracy(y_test, mm_rf_pred)])
+
+    return pd.DataFrame(data=rows, columns=columns).mean()
 
 
-print('LogReg normalized', CV(df, 'class', LogisticRegression(), 100, True))
-print('LogReg unnormalized', CV(df, 'class', LogisticRegression(), 100, False))
-print('Forest normalized', CV(df, 'class', RandomForestClassifier(), 100, True))
-print('Forest unnormalized', CV(df, 'class', RandomForestClassifier(), 100, False))
+df = load_diabetes_df()
+
+# print('LogReg normalized', cross_validate(df, 'class', LogisticRegression(), 100, True))
+# print('LogReg unnormalized', cross_validate(df, 'class', LogisticRegression(), 100, False))
+# print('Forest normalized', cross_validate(df, 'class', RandomForestClassifier(), 100, True))
+# print('Forest unnormalized', cross_validate(df, 'class', RandomForestClassifier(), 100, False))
+
+print(complex_validation(df))
